@@ -28,7 +28,7 @@ function backup_stdin {
 ${SSH_CMD} mkdir -p "${DEST_DIR}"
 
 # Back up all of Documents except for videos
-find '/home/david/Documents/' -mindepth 1 -maxdepth 1 -type d -print0 -not -name 'videos' \
+find '/home/david/Documents/' -mindepth 1 -maxdepth 1 -type d -not -name 'videos' -print0 \
 | while read -r -d $'\0' DOC_DIR;
 do
   backup_dir "${DOC_DIR}"
