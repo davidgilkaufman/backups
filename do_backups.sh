@@ -37,7 +37,7 @@ do
 done
 
 # Back up specific paths
-backup_dir "/home/david/Documents/vidoes/special"
+backup_dir "/home/david/Documents/videos/special"
 backup_dir "/home/david/Desktop"
 backup_dir "/etc"
 
