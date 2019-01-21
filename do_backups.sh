@@ -19,9 +19,11 @@ function backup_dir {
 
 function backup_stdin {
   DEST="${DEST_DIR}/${1}.gpg"
+  echo "Backing up data to ${DEST}..."
   gpg --batch "--passphrase-file=${GPG_PASS_FILE}" --compress-algo=none --symmetric | $SSH_CMD dd "of=${DEST}" bs=1M status=progress
   # Decrypt: gpg -d --batch "--passphrase-file=${GPG_PASS_FILE}"
-  echo "Backed up data to ${DEST}"
+  echo "Backed up data to ${DEST}."
+  echo
 }
 
 # Create destination directory for this backup
