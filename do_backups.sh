@@ -6,15 +6,39 @@ GPG_PASS_FILE='/tmp/backup_pass'
 SSH_CMD="ssh rsyncnet"
 
 DATE=$(date --iso)
-DEST_DIR="backups/${DATE}"
+BACKUPS_DIR="backups"
+DEST_DIR="${BACKUPS_DIR}/${DATE}"
+DEST_DIR_BAK="${DEST_DIR}.bak"
 
-function backup_dir {
+function tar_dir {
   BDIR="${1}"
   DIRNAME=$(dirname "${BDIR}")
   BASENAME=$(basename "${BDIR}")
-  NAME="${BASENAME}.tar"
   cd "${DIRNAME}"
-  ionice -c idle tar -cf /dev/stdout "${BASENAME}" | backup_stdin "${NAME}"
+  ionice -c idle tar -cf /dev/stdout "${BASENAME}" 2>/dev/null
+}
+
+function backup_dir {
+  BDIR="${1}"
+  BASENAME=$(basename "${BDIR}")
+  NAME="${BASENAME}.tar"
+
+  # Compute hash
+  HASH=$(tar_dir "${BDIR}" | sha512sum | awk '{print $1}')
+  HASH_FILE="${NAME}.${HASH}"
+
+  # Search for hash file on backup server
+  REMOTE_HASH_FILE=$($SSH_CMD find "${BACKUPS_DIR}" -name "${HASH_FILE}" | head -n1)
+  if [ -n "${REMOTE_HASH_FILE}" ] ; then
+    REMOTE_DIR=$(dirname "${REMOTE_HASH_FILE}")
+    echo "Found remote hash file in ${REMOTE_DIR}"
+    $SSH_CMD ln "${REMOTE_DIR}/${NAME}.gpg" "${DEST_DIR}/${NAME}.gpg"
+  else
+    tar_dir "${BDIR}" | backup_stdin "${NAME}"
+  fi
+
+  # Upload hash file
+  $SSH_CMD touch "${DEST_DIR}/${HASH_FILE}"
 }
 
 function backup_stdin {
@@ -26,7 +50,16 @@ function backup_stdin {
   echo
 }
 
-# Create destination directory for this backup
+# Create destination directory for this backup, archiving an old directory of the same name if relevant
+DEST_EXISTS=$($SSH_CMD ls -d "${DEST_DIR}" 2>/dev/null || :)
+DEST_BAK_EXISTS=$($SSH_CMD ls -d "${DEST_DIR_BAK}" 2>/dev/null || :)
+if [ -n "$DEST_EXISTS" ]; then
+  if [ -z "$DEST_BAK_EXISTS" ]; then
+    $SSH_CMD mv "$DEST_DIR" "$DEST_DIR_BAK"
+  else
+    $SSH_CMD rm -rf "${DEST_DIR}"
+  fi
+fi
 ${SSH_CMD} mkdir -p "${DEST_DIR}"
 
 # Back up all of Documents except for videos
