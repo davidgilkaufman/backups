@@ -46,7 +46,7 @@ tree /home/david/Documents/videos/findable | backup_stdin "cmd_videos_findable"
 tree /home/david/Documents/videos/tmp      | backup_stdin "cmd_videos_tmp"
 
 # Delete other/older backups
-$SSH_CMD find backups -mindepth 1 -maxdepth 1 -not -name "${DATE}" -exec rm -rf {} \;
+$SSH_CMD find backups -mindepth 1 -maxdepth 1 -not -name "${DATE}" -exec rm -rf "{}" "\;"
 
 #################################
 # Other utilities/sample commands
