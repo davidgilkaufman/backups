@@ -1,5 +1,56 @@
 #!/bin/bash
 
+# Encrypted backups script
+#
+# Purpose/summary
+#
+#   This script performs encrypted backups to rsync.net. The goal of these backups is to protect against sudden computer failure or theft. As
+#   such, there is no history of past backups, just a single copy of the documents currently on the machine. During a backup some files
+#   are duplicated to avoid data loss in case of a network outage or script error, but once a new backup is completed all old backup
+#   files are deleted. There is no protection against slow disk failures (with read errors resulting in bad backups) or deleting a file
+#   and not noticing before you run next the script.
+#
+# Operation
+#
+#   Documents on the local machine are broken into logical "archives", corresponding to non-overlapping directory trees. Each archive is
+#   tar'd and encrypted with gpg before being backed up. Additionally, to avoid unnecessary network traffic, the sha512 sum of each tar
+#   file is taken and checked against a checksum file on the remote machine. If it's a match then the old backup for that archive is retained
+#   instead of uploading a new archive. If your disk speed is not substantially faster than your network speed you may want to disable this
+#   feature and upload everything every time.
+#
+#   Ideally the list of local archives is a constant, to make it clear what is being backed up and what isn't, but I decided that I wanted all
+#   of $HOME/Documents backed up with each subdirectory in a separate archive. As a compromise between these two goals I have a hard coded
+#   list of these archives and check during script execution that this constant list matches the contents of my local disk.
+#
+# Invariants and assumptions
+#
+# - Backups are stored in `backups/${DATE}/${ARCHIVE_NAME}.tar.gpg`. The intetion is for backups to be run only once per day. Multiple runs of
+#   the script in a single day will work, but if that's part of your use case you may want to consider a more granular naming scheme.
+# - At script invocation if `backups/${DATE}` already exists it is moved to `backups/${DATE}.bak` to preserve the data until the new backup is
+#   completed. If that directory also exists then `backups/${DATE}` is assumed to be the result of a more recent incomplete backup (i.e. not the
+#   last successful backup) and is deleted instead. Other than this, no files are deleted until the successful completion of a backup, at which
+#   point all backup files not part of the new backup are deleted.
+# - It is assumed that the files to be backed up do not change during the execution of the backup script. If they do this this script offers
+#   pretty much no guaranties on the data being backed up "correctly" -- the backup may not represent a state the local disk was ever in and
+#   the stored hashes of archive tars might not actually be correct. (In practice these things are probably of little consequence, but don't
+#   do it).
+# - This script was designed to run on rsync.net, but it should work (with very minor adjustments? `quota`?) on any ssh-accessible system that
+#   supports hardlinks that supports basic standard unix commands.
+#
+# Initial setup + usage
+#
+# - Create an account on rsync.net and ensure that the quota is large enough for two complete backups of your archives (i.e. the second backup
+#   would work even if every archive changed and had to be uploaded again).
+# - Create an entry in .ssh/config defining the rsyncnet host with the appropriate username, address, and key (see the `setup` function).
+# - Upload your public key to rsync.net (see the `setup` function below for sample commands).
+# - Ensure that you have a system for recalling your rsync.net user/host/key or password and your gpg key that does not require your computer.
+#   For bonus points also ensure you have access to the sample commands for decrypting your backups.
+# - It is assumed that the gpg password is written to ${GPG_PASS_FILE}='/tmp/backup_pass'. Write that file before running backups. Ensure
+#   that the file is only redable by the desired set of users.
+# - Run the script to generate your first backup
+# - On another machine (or pretend _really_ hard that your machine is another machine -- don't depend on your .ssh/config or keys) follow your
+#   procedure for downloading a backed up archive and decrypting it.
+
 set -e
 
 GPG_PASS_FILE='/tmp/backup_pass'
@@ -134,6 +185,12 @@ echo "${QUOTA_END}"
 #################################
 # Other utilities/sample commands
 function setup {
+  # Entry in .ssh/config:
+  # Host rsyncnet
+  #     Hostname ********.rsync.net
+  #     User your_username
+  #     IdentityFile ~/.ssh/id_ed25519
+
   cat ~/.ssh/id_ed25519.pub | ${SSH_CMD} dd of=.ssh/authorized_keys
 }
 
