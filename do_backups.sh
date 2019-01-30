@@ -54,6 +54,12 @@
 set -e
 
 GPG_PASS_FILE='/tmp/backup_pass'
+
+if [ ! -f "${GPG_PASS_FILE}" ]; then
+  echo "ERROR: ${GPG_PASS_FILE} doesn't exist"
+  exit 1
+fi
+
 SSH_CMD="ssh rsyncnet"
 
 DATE=$(date --iso)
@@ -127,6 +133,7 @@ EXPECTED_DOC_DIRS=(
   "/home/david/Documents/sheet_music"
   "/home/david/Documents/tax_stuff"
 )
+
 DOC_DIRS=$(find '/home/david/Documents/' -mindepth 1 -maxdepth 1 -type d -not -name 'videos' | sort | tr "\n" " " | sed 's/ *$//')
 if [ "${DOC_DIRS}" != "${EXPECTED_DOC_DIRS[*]}" ]; then
   echo "Mismatched doc dirs:"
