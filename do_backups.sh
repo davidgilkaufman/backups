@@ -98,6 +98,9 @@ if [ -n "$DEST_EXISTS" ]; then
   fi
 fi
 ${SSH_CMD} mkdir -p "${DEST_DIR}"
+echo
+
+QUOTA_BEGIN=$($SSH_CMD quota)
 
 # Back up all of Documents except for videos
 for DOC_DIR in ${DOC_DIRS}
@@ -115,7 +118,18 @@ tree /home/david/Documents/videos/findable | backup_stdin "cmd_videos_findable"
 tree /home/david/Documents/videos/tmp      | backup_stdin "cmd_videos_tmp"
 
 # Delete other/older backups
+echo "Deleting old backups"
+QUOTA_MAX=$($SSH_CMD quota)
 $SSH_CMD find backups -mindepth 1 -maxdepth 1 -not -name "${DATE}" -exec rm -rf "{}" "\;"
+
+QUOTA_END=$($SSH_CMD quota)
+
+echo "Quotas begin/max/end:"
+echo "${QUOTA_BEGIN}"
+echo
+echo "${QUOTA_MAX}"
+echo
+echo "${QUOTA_END}"
 
 #################################
 # Other utilities/sample commands
