@@ -22,6 +22,9 @@
 #   of $HOME/Documents backed up with each subdirectory in a separate archive. As a compromise between these two goals I have a hard coded
 #   list of these archives and check during script execution that this constant list matches the contents of my local disk.
 #
+#   In addition to backing up archives from disk directories, this system can create archives from stdin (i.e. any command you care to run).
+#   It is not assumed that these commands can be (cheaply?) rerun and these archives do not use the sha512 caching system.
+#
 # Invariants and assumptions
 #
 # - Backups are stored in `backups/${DATE}/${ARCHIVE_NAME}.tar.gpg`. The intetion is for backups to be run only once per day. Multiple runs of
@@ -36,6 +39,7 @@
 #   do it).
 # - This script was designed to run on rsync.net, but it should work (with very minor adjustments? `quota`?) on any ssh-accessible system that
 #   supports hardlinks that supports basic standard unix commands.
+# - All backup file creation is done by streaming data through pipes. You do not need much (any?) free disk space to run backups.
 #
 # Initial setup + usage
 #
@@ -66,6 +70,10 @@ DATE=$(date --iso)
 BACKUPS_DIR="backups"
 DEST_DIR="${BACKUPS_DIR}/${DATE}"
 DEST_DIR_BAK="${DEST_DIR}.bak"
+
+#####################################
+# Backup functions
+#####################################
 
 function tar_dir {
   BDIR="${1}"
@@ -109,6 +117,10 @@ function backup_stdin {
   echo "Backed up data to ${DEST}."
   echo
 }
+
+#####################################
+# Setup/prechecks
+#####################################
 
 echo "Running prechecks"
 EXPECTED_DOC_DIRS=(
@@ -158,7 +170,13 @@ fi
 ${SSH_CMD} mkdir -p "${DEST_DIR}"
 echo
 
+#####################################
+# Begin backups
+#####################################
+
 QUOTA_BEGIN=$($SSH_CMD quota)
+echo "${QUOTA_BEGIN}"
+echo
 
 # Back up all of Documents except for videos
 for DOC_DIR in ${DOC_DIRS}
@@ -175,6 +193,10 @@ backup_dir "/etc"
 tree /home/david/Documents/videos/findable | backup_stdin "cmd_videos_findable"
 tree /home/david/Documents/videos/tmp      | backup_stdin "cmd_videos_tmp"
 
+#####################################
+# Cleanup old files
+#####################################
+
 # Delete other/older backups
 echo "Deleting old backups"
 QUOTA_MAX=$($SSH_CMD quota)
@@ -189,8 +211,10 @@ echo "${QUOTA_MAX}"
 echo
 echo "${QUOTA_END}"
 
-#################################
+#####################################
 # Other utilities/sample commands
+#####################################
+
 function setup {
   # Entry in .ssh/config:
   # Host rsyncnet
