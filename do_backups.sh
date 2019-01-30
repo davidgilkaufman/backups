@@ -31,9 +31,12 @@ function backup_dir {
   REMOTE_HASH_FILE=$($SSH_CMD find "${BACKUPS_DIR}" -name "${HASH_FILE}" | head -n1)
   if [ -n "${REMOTE_HASH_FILE}" ] ; then
     REMOTE_DIR=$(dirname "${REMOTE_HASH_FILE}")
-    echo "Found remote hash file in ${REMOTE_DIR}"
+    echo "Found remote hash file for ${NAME}.gpg in ${REMOTE_DIR}"
     $SSH_CMD ln "${REMOTE_DIR}/${NAME}.gpg" "${DEST_DIR}/${NAME}.gpg"
+    echo
   else
+    SIZE=$(du --apparent-size -sh "${BDIR}")
+    echo "Backing up ~${SIZE} bytes for to ${NAME}.gpg"
     tar_dir "${BDIR}" | backup_stdin "${NAME}"
   fi
 
@@ -50,21 +53,54 @@ function backup_stdin {
   echo
 }
 
+echo "Running prechecks"
+EXPECTED_DOC_DIRS=(
+  "/home/david/Documents/Anki"
+  "/home/david/Documents/archive"
+  "/home/david/Documents/blair"
+  "/home/david/Documents/books"
+  "/home/david/Documents/code"
+  "/home/david/Documents/coursera"
+  "/home/david/Documents/doorcomics"
+  "/home/david/Documents/jobs"
+  "/home/david/Documents/journal"
+  "/home/david/Documents/misc"
+  "/home/david/Documents/mit"
+  "/home/david/Documents/MuseScore2"
+  "/home/david/Documents/music"
+  "/home/david/Documents/notes"
+  "/home/david/Documents/passwords"
+  "/home/david/Documents/photos"
+  "/home/david/Documents/projects"
+  "/home/david/Documents/renting_information"
+  "/home/david/Documents/sheet_music"
+  "/home/david/Documents/tax_stuff"
+)
+DOC_DIRS=$(find '/home/david/Documents/' -mindepth 1 -maxdepth 1 -type d -not -name 'videos' | sort | tr "\n" " " | sed 's/ *$//')
+if [ "${DOC_DIRS}" != "${EXPECTED_DOC_DIRS[*]}" ]; then
+  echo "Mismatched doc dirs:"
+  echo "Expected: ${EXPECTED_DOC_DIRS[*]}"
+  echo "Actual  : ${DOC_DIRS}"
+  exit 1
+fi
+
 # Create destination directory for this backup, archiving an old directory of the same name if relevant
+echo "Setup backup environment"
 DEST_EXISTS=$($SSH_CMD ls -d "${DEST_DIR}" 2>/dev/null || :)
 DEST_BAK_EXISTS=$($SSH_CMD ls -d "${DEST_DIR_BAK}" 2>/dev/null || :)
 if [ -n "$DEST_EXISTS" ]; then
   if [ -z "$DEST_BAK_EXISTS" ]; then
+    echo "Backing up backup directory of the same name"
     $SSH_CMD mv "$DEST_DIR" "$DEST_DIR_BAK"
   else
+    echo "Backup-backup already exists; cleaning the backup directory"
     $SSH_CMD rm -rf "${DEST_DIR}"
   fi
 fi
 ${SSH_CMD} mkdir -p "${DEST_DIR}"
 
 # Back up all of Documents except for videos
-find '/home/david/Documents/' -mindepth 1 -maxdepth 1 -type d -not -name 'videos' -print0 \
-| while read -r -d $'\0' DOC_DIR;
+for DOC_DIR in ${DOC_DIRS}
 do
   backup_dir "${DOC_DIR}"
 done
