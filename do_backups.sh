@@ -100,7 +100,7 @@ function backup_dir {
     $SSH_CMD ln "${REMOTE_DIR}/${NAME}.gpg" "${DEST_DIR}/${NAME}.gpg"
     echo
   else
-    SIZE=$(du --apparent-size -sh "${BDIR}")
+    SIZE=$(du --apparent-size -sh "${BDIR}" 2>/dev/null || true)
     echo "Backing up ~${SIZE} bytes for to ${NAME}.gpg"
     tar_dir "${BDIR}" | backup_stdin "${NAME}"
   fi
