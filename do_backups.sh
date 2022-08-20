@@ -57,17 +57,17 @@
 
 set -e
 
-GPG_PASS_FILE='/tmp/backup_pass'
+GPG_PASS_FILE='/home/david/Documents/passwords/rsyncnet-gpg'
 
 if [ ! -f "${GPG_PASS_FILE}" ]; then
   echo "ERROR: ${GPG_PASS_FILE} doesn't exist"
   exit 1
 fi
 
-SSH_CMD="ssh rsyncnet"
+SSH_CMD="ssh pogo.local"
 
 DATE=$(date --iso)
-BACKUPS_DIR="backups"
+BACKUPS_DIR="nido_backups"
 DEST_DIR="${BACKUPS_DIR}/${DATE}"
 DEST_DIR_BAK="${DEST_DIR}.bak"
 
@@ -136,6 +136,7 @@ EXPECTED_DOC_DIRS=(
   "/home/david/Documents/misc"
   "/home/david/Documents/mit"
   "/home/david/Documents/MuseScore2"
+  "/home/david/Documents/MuseScore3"
   "/home/david/Documents/music"
   "/home/david/Documents/notes"
   "/home/david/Documents/passwords"
@@ -174,9 +175,9 @@ echo
 # Begin backups
 #####################################
 
-QUOTA_BEGIN=$($SSH_CMD quota)
-echo "${QUOTA_BEGIN}"
-echo
+# QUOTA_BEGIN=$($SSH_CMD quota)
+# echo "${QUOTA_BEGIN}"
+# echo
 
 # Back up all of Documents except for videos
 for DOC_DIR in ${DOC_DIRS}
@@ -187,6 +188,7 @@ done
 # Back up specific paths
 backup_dir "/home/david/Documents/videos/special"
 backup_dir "/home/david/Desktop"
+backup_dir "/home/david/.local/share/Steam"
 backup_dir "/etc"
 
 # Back up command outputs
@@ -199,17 +201,17 @@ tree /home/david/Documents/videos/tmp      | backup_stdin "cmd_videos_tmp"
 
 # Delete other/older backups
 echo "Deleting old backups"
-QUOTA_MAX=$($SSH_CMD quota)
-$SSH_CMD find backups -mindepth 1 -maxdepth 1 -not -name "${DATE}" -exec rm -rf "{}" "\;"
+# QUOTA_MAX=$($SSH_CMD quota)
+$SSH_CMD find "${BACKUPS_DIR}" -mindepth 1 -maxdepth 1 -not -name "${DATE}" -exec rm -rf "{}" "\;"
 
-QUOTA_END=$($SSH_CMD quota)
+# QUOTA_END=$($SSH_CMD quota)
 
-echo "Quotas begin/max/end:"
-echo "${QUOTA_BEGIN}"
-echo
-echo "${QUOTA_MAX}"
-echo
-echo "${QUOTA_END}"
+# echo "Quotas begin/max/end:"
+# echo "${QUOTA_BEGIN}"
+# echo
+# echo "${QUOTA_MAX}"
+# echo
+# echo "${QUOTA_END}"
 
 #####################################
 # Other utilities/sample commands
